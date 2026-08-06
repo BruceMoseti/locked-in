@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Locked In — commit to your day</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#13151e; --panel:#1b1d26; --line:#2e3146;
+  --accent:#7e85f7; --accent-dim:#5f66d6;
+  --fg:#e9eaf2; --muted:#5d616d; --dim:#9296a6;
+  --deep:#7e85f7; --social:#4db6ac; --shallow:#8d93a8;
+  --physical:#f0995e; --errand:#b07de0; --break:#3a3f55;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font:15px/1.55 "Inter",ui-sans-serif,system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:none;background:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* ---------- header ---------- */
+.top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.85rem 1.4rem;border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:.6rem}
+.brand svg{width:20px;height:20px;color:var(--accent)}
+.brand .name{font-size:1.35rem;font-weight:800;color:var(--accent);letter-spacing:-.02em;line-height:1}
+.brand .sub{font-size:.68rem;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-top:.25rem}
+.gbtn{
+  background:var(--accent);color:#fff;font-weight:700;font-size:.9rem;
+  padding:.6rem 1.15rem;border-radius:.55rem;
+}
+.gbtn:hover{background:var(--accent-dim)}
+.topright{display:flex;align-items:center;gap:.7rem}
+.clock{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.drift{font-size:.8rem;font-weight:600;padding:.25rem .6rem;border-radius:999px}
+.drift.behind{color:#f0995e;background:rgba(240,153,94,.12)}
+.drift.ahead{color:#4db6ac;background:rgba(77,182,172,.12)}
+.ghost{
+  font-size:.85rem;font-weight:600;color:var(--dim);
+  border:1px solid var(--line);border-radius:.5rem;padding:.45rem .8rem;
+}
+.ghost:hover{color:var(--fg);border-color:var(--accent)}
+
+/* block states */
+.blk{position:relative;transition:border-color .15s,opacity .15s}
+.blk .acts{display:flex;gap:.3rem;margin-top:.5rem;opacity:0;transition:opacity .12s}
+.blk:hover .acts,.blk.running .acts{opacity:1}
+.act{
+  font-size:.72rem;font-weight:600;color:var(--dim);
+  border:1px solid var(--line);border-radius:.35rem;padding:.15rem .5rem;
+}
+.act:hover{color:var(--fg);border-color:var(--accent)}
+.act.on{color:var(--accent);border-color:var(--accent)}
+.blk.locked{background:#1f2233;border-left-width:5px}
+.blk.locked .name::before{content:"🔒 ";font-size:.8em}
+.blk.done{opacity:.45}
+.blk.done .name{text-decoration:line-through}
+.blk.done .name::before{content:"✓ ";color:#4db6ac;text-decoration:none}
+.blk.running{border:1px solid var(--accent);border-left:3px solid var(--accent);
+             box-shadow:0 0 0 3px rgba(126,133,247,.12)}
+.timer{font-size:.8rem;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.timer.over{color:#f0995e}
+
+/* ---------- split ---------- */
+.split{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 60px)}
+.pane{display:flex;flex-direction:column;min-height:0}
+.pane + .pane{border-left:1px solid var(--line)}
+.pane-head{
+  padding:.75rem 1.4rem;border-bottom:1px solid var(--line);
+  font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;
+}
+.pane-body{flex:1;overflow-y:auto;padding:1.1rem 1.4rem}
+
+/* ---------- timeline ---------- */
+.empty{
+  height:100%;display:grid;place-items:center;text-align:center;
+  color:var(--muted);font-size:.95rem;padding:2rem;
+}
+.tl{position:relative}
+.row{display:grid;grid-template-columns:4.2rem 1fr;gap:.7rem;min-height:2.6rem}
+.row .hour{
+  font-size:.7rem;color:var(--muted);padding-top:.1rem;text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.row .lane{border-top:1px solid var(--line);padding:0 0 .5rem}
+.blk{
+  border-left:3px solid var(--k);background:var(--panel);
+  border-radius:.4rem;padding:.5rem .7rem;margin:.28rem 0;
+}
+.blk .t{display:flex;gap:.6rem;align-items:baseline}
+.blk .t .name{font-weight:600;font-size:.92rem}
+.blk .t .when{margin-left:auto;font-size:.72rem;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.blk .why{font-size:.78rem;color:var(--dim);margin-top:.15rem}
+.blk .warn{font-size:.75rem;color:#f0995e;margin-top:.2rem}
+.blk.break{border-left-color:var(--break);opacity:.75}
+
+.notes{margin-top:1.2rem;border-top:1px solid var(--line);padding-top:.9rem}
+.notes h4{margin:0 0 .45rem;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.notes li{font-size:.83rem;color:var(--dim);margin-bottom:.3rem;list-style:none;padding-left:.9rem;position:relative}
+.notes li::before{content:"·";position:absolute;left:.15rem;color:var(--accent)}
+.defer li{color:#f0995e}
+
+/* ---------- right pane ---------- */
+.date{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+h2{margin:.5rem 0 .8rem;font-size:1.35rem;font-weight:700;letter-spacing:-.02em}
+textarea{
+  width:100%;min-height:13rem;resize:vertical;
+  background:var(--panel);border:1px solid var(--line);border-radius:.55rem;
+  padding:.8rem .9rem;line-height:1.7;
+}
+textarea::placeholder{color:var(--muted)}
+.hint{font-size:.78rem;color:var(--muted);margin-top:.5rem}
+.hint code{background:var(--panel);border:1px solid var(--line);border-radius:.25rem;padding:.05rem .3rem;font-size:.92em}
+.chips{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.7rem}
+.chip{
+  font-size:.75rem;padding:.2rem .55rem;border:1px solid var(--line);
+  border-radius:999px;background:var(--panel);color:var(--dim);
+}
+.chip:hover{border-color:var(--accent);color:var(--fg)}
+.foot{padding:1rem 1.4rem;border-top:1px solid var(--line)}
+input[type=text]{
+  width:100%;background:var(--panel);border:1px solid var(--line);
+  border-radius:.55rem;padding:.65rem .9rem;
+}
+input[type=text]::placeholder{color:var(--muted)}
+.submit{
+  width:100%;margin-top:.6rem;background:var(--accent);color:#fff;
+  font-weight:700;padding:.75rem;border-radius:.55rem;
+}
+.submit:hover{background:var(--accent-dim)}
+.submit:disabled{opacity:.5;cursor:default}
+
+@media (max-width:52rem){
+  body{overflow:auto}
+  .split{grid-template-columns:1fr;height:auto}
+  .pane + .pane{border-left:none;border-top:1px solid var(--line)}
+  .pane-body{overflow:visible}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M4 6h10M4 12h16M4 18h7"/>
+    </svg>
+    <div>
+      <div class="name">Locked&nbsp;In</div>
+      <div class="sub">Commit to your day</div>
+    </div>
+  </div>
+  <div class="topright">
+    <span class="clock" id="clock"></span>
+    <span class="drift" id="drift"></span>
+    <button class="ghost" id="replan" hidden>Re-plan from now</button>
+    <button class="gbtn" id="gsign">Sign in with Google</button>
+  </div>
+</header>
+
+<div class="split">
+
+  <section class="pane">
+    <div class="pane-head"><span>Calendar</span><span id="summary"></span></div>
+    <div class="pane-body" id="cal">
+      <div class="empty">Write your to-dos on the right and hit Plan my day.</div>
+    </div>
+  </section>
+
+  <section class="pane">
+    <div class="pane-body">
+      <div class="date" id="today"></div>
+      <h2>To-dos</h2>
+      <textarea id="todos" spellcheck="false" placeholder="finish the quarterly deck
+email Sarah about the invoice
+call mom 15m
+standup at 9:30am
+gym
+buy groceries
+urgent: fix the login bug by 2pm"></textarea>
+      <div class="hint">
+        Write it messy. Understood: <code>45m</code>, <code>2h</code>,
+        <code>at 9:30am</code>, <code>by 3pm</code>, <code>urgent</code>,
+        <code>quick</code>.
+      </div>
+      <div class="chips">
+        <button class="chip" data-fill="busy">Try a busy day</button>
+        <button class="chip" data-fill="light">Try a light day</button>
+        <button class="chip" data-fill="clear">Clear</button>
+      </div>
+    </div>
+    <div class="foot">
+      <input type="text" id="prefs" placeholder="Preferences — e.g. start 8am, lunch at 1, finish by 5" />
+      <button class="submit" id="go">Plan my day</button>
+    </div>
+  </section>
+
+</div>
+
+<script type="module">
+/* ===== scheduler.js is inlined below so this file runs with no build ===== */
+/**
+ * Locked In — scheduling and commitment engine.
+ *
+ * Pure functions, no imports, no DOM. Runs in the browser and under `node
+ * --test` unchanged, which is what lets the scheduling rules be tested without
+ * a server, a database, or an API key.
+ *
+ * The division of labour matters. A language model is good at reading "finish
+ * the deck sometime tomorrow, call mom, gym" and turning it into structured
+ * tasks. It is bad at scheduling, because scheduling is constraint satisfaction
+ * and you want the same input to produce the same day every time.
+ *
+ * So parsing may be model-assisted; placement never is. Every block below is
+ * decided here, in ordinary code, and carries a `why` string explaining itself.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Task classification                                                 */
+/* ------------------------------------------------------------------ */
+
+const KINDS = ['deep', 'social', 'physical', 'shallow', 'errand'];
+
+const KEYWORDS = {
+  deep: [
+    'write', 'draft', 'code', 'build', 'design', 'study', 'read', 'review',
+    'analyz', 'analys', 'prepare', 'deck', 'essay', 'report', 'problem set',
+    'debug', 'refactor', 'research', 'plan', 'outline', 'spec', 'thesis',
+    'homework', 'assignment', 'revise', 'edit', 'model', 'solve',
+  ],
+  social: [
+    'call', 'meet', 'coffee', 'sync', '1:1', 'one on one', 'catch up',
+    'interview', 'standup', 'stand-up', 'chat', 'zoom', 'dinner with',
+    'lunch with', 'talk to', 'ring',
+  ],
+  physical: [
+    'gym', 'run', 'workout', 'work out', 'walk', 'lift', 'swim', 'bike',
+    'yoga', 'stretch', 'training', 'practice', 'basketball', 'soccer',
+  ],
+  shallow: [
+    'email', 'reply', 'respond', 'invoice', 'expense', 'book', 'schedule',
+    'order', 'file', 'submit', 'form', 'admin', 'pay', 'renew', 'cancel',
+    'sign', 'upload', 'send', 'text', 'follow up', 'follow-up', 'inbox',
+  ],
+  errand: [
+    'buy', 'pick up', 'pickup', 'drop off', 'dropoff', 'groceries', 'grocery',
+    'shop', 'mail', 'post office', 'bank', 'laundry', 'clean', 'tidy',
+  ],
+};
+
+/** Default minutes when the task text gives no duration. */
+const DEFAULT_MINUTES = {
+  deep: 90, social: 30, physical: 60, shallow: 15, errand: 45,
+};
+
+const ORDER = ['social', 'physical', 'shallow', 'errand', 'deep'];
+
+function classify(text) {
+  const t = text.toLowerCase().trim();
+
+  // What you are doing beats what you are doing it to. "email the gym" is
+  // admin, not exercise; "call the bank" is a conversation, not an errand.
+  // So the opening words are checked before the rest of the line, and only
+  // if no verb matches does the whole string get consulted.
+  const opening = t.split(/\s+/).slice(0, 2).join(' ');
+  for (const kind of ORDER) {
+    if (KEYWORDS[kind].some((k) => opening.startsWith(k))) return kind;
+  }
+
+  for (const kind of ORDER) {
+    if (KEYWORDS[kind].some((k) => t.includes(k))) return kind;
+  }
+
+  // Unrecognised work is assumed to need focus. Under-scheduling a shallow
+  // task costs a few minutes; under-scheduling a deep one wrecks the day.
+  return 'deep';
+}
+
+/* ------------------------------------------------------------------ */
+/* Parsing                                                             */
+/* ------------------------------------------------------------------ */
+
+const DURATION_PATTERNS = [
+  [/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/i, (m) => Math.round(parseFloat(m[1]) * 60)],
+  [/(\d+)\s*(?:minutes?|mins?|m)\b/i, (m) => parseInt(m[1], 10)],
+  [/\ball (?:morning|afternoon)\b/i, () => 180],
+  [/\b(?:quick|quickly|fast|brief)\b/i, () => 15],
+  [/\b(?:long|deep dive|properly)\b/i, () => 120],
+];
+
+const TIME_PATTERN = /\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i;
+const DEADLINE_PATTERN = /\bb(?:y|efore)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i;
+const URGENT_PATTERN = /\b(urgent|asap|critical|today)\b|!!/i;
+
+function toMinutes(hour, minute, meridiem) {
+  let h = parseInt(hour, 10);
+  const m = minute ? parseInt(minute, 10) : 0;
+  const mer = (meridiem || '').toLowerCase();
+  if (mer === 'pm' && h !== 12) h += 12;
+  if (mer === 'am' && h === 12) h = 0;
+  // No meridiem: assume the reading a person would. "by 3" during a workday
+  // means 15:00, not 03:00.
+  if (!mer && h <= 7) h += 12;
+  return h * 60 + m;
+}
+
+function minutesToLabel(total) {
+  const h = Math.floor(total / 60) % 24;
+  const m = total % 60;
+  const mer = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${mer}`;
+}
+
+/** Split a blob of messy text into individual task lines. */
+function splitLines(raw) {
+  return String(raw || '')
+    .split(/\r?\n|(?:^|\s)[-•*]\s+|;/g)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 1);
+}
+
+function parseTask(line, index = 0) {
+  let title = line.trim();
+  let minutes = null;
+  let fixedAt = null;
+  let deadline = null;
+
+  for (const [pattern, extract] of DURATION_PATTERNS) {
+    const match = title.match(pattern);
+    if (match) {
+      minutes = extract(match);
+      title = title.replace(match[0], ' ');
+      break;
+    }
+  }
+
+  // Deadline is checked before fixed time, because "by 3pm" contains
+  // something that also looks like a start time.
+  const dl = title.match(DEADLINE_PATTERN);
+  if (dl) {
+    deadline = toMinutes(dl[1], dl[2], dl[3]);
+    title = title.replace(dl[0], ' ');
+  } else {
+    const at = title.match(TIME_PATTERN);
+    if (at) {
+      fixedAt = toMinutes(at[1], at[2], at[3]);
+      title = title.replace(at[0], ' ');
+    }
+  }
+
+  const urgent = URGENT_PATTERN.test(title);
+  title = title.replace(URGENT_PATTERN, ' ');
+
+  title = title
+    .replace(/\(\s*\)/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[\s,:;–—-]+|[\s,:;–—-]+$/g, '')
+    .trim();
+
+  const kind = classify(title || line);
+
+  return {
+    id: `t${index}`,
+    title: title || line.trim(),
+    kind,
+    minutes: minutes || DEFAULT_MINUTES[kind],
+    fixedAt,
+    deadline,
+    urgent,
+  };
+}
+
+function parseTasks(raw) {
+  return splitLines(raw).map((line, i) => parseTask(line, i));
+}
+
+/* ------------------------------------------------------------------ */
+/* Scheduling                                                          */
+/* ------------------------------------------------------------------ */
+
+const DEFAULTS = {
+  dayStart: 9 * 60,
+  // Nothing is ever placed before this. During a re-plan it is set to the
+  // current time, which is what stops the scheduler from cheerfully booking
+  // you at 10am when it is already half past two.
+  notBefore: null,
+  dayEnd: 18 * 60,
+  lunchStart: 12 * 60 + 30,
+  lunchMinutes: 45,
+  buffer: 5,
+  maxDeepBlock: 90,
+  breakAfterDeep: 10,
+  // Post-lunch dip. Deep work placed here gets done badly and resented.
+  dipMinutes: 75,
+  physicalCooldownAfterLunch: 45,
+};
+
+/** Energy bands. Placement consults these rather than hardcoding hours. */
+function bands(prefs) {
+  const lunchEnd = prefs.lunchStart + prefs.lunchMinutes;
+  return {
+    peak: [prefs.dayStart, prefs.lunchStart],
+    lunch: [prefs.lunchStart, lunchEnd],
+    dip: [lunchEnd, lunchEnd + prefs.dipMinutes],
+    second: [lunchEnd + prefs.dipMinutes, prefs.dayEnd - 60],
+    winddown: [prefs.dayEnd - 60, prefs.dayEnd],
+  };
+}
+
+function overlaps(aStart, aEnd, bStart, bEnd) {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+/** Earliest free slot of `minutes` at or after `from`, avoiding `busy`. */
+function findSlot(minutes, from, until, busy, buffer) {
+  let cursor = from;
+  const ordered = [...busy].sort((a, b) => a.start - b.start);
+  for (const block of ordered) {
+    if (block.end + buffer <= cursor) continue;
+    if (cursor + minutes + buffer <= block.start) return cursor;
+    cursor = Math.max(cursor, block.end + buffer);
+  }
+  return cursor + minutes <= until ? cursor : null;
+}
+
+/**
+ * Turn tasks into a day.
+ *
+ * Returns `{ blocks, deferred, notes }`. Anything that will not fit is
+ * deferred with a reason rather than crammed in — a plan that cannot be
+ * followed is worse than a short one, because it teaches you to ignore the
+ * plan.
+ */
+function schedule(tasks, options = {}) {
+  const prefs = { ...DEFAULTS, ...options };
+  const floor = prefs.notBefore;
+  const band = bands(prefs);
+  if (floor !== null && floor !== undefined) {
+    // Clip every energy band forward. A band that has already passed
+    // collapses to nothing rather than silently accepting work.
+    for (const key of Object.keys(band)) {
+      band[key] = [Math.max(band[key][0], floor), Math.max(band[key][1], floor)];
+    }
+  }
+  const blocks = [];
+  const deferred = [];
+  const notes = [];
+
+  const place = (task, start, why) => {
+    const block = {
+      id: task.id,
+      title: task.title,
+      kind: task.kind,
+      start,
+      end: start + task.minutes,
+      why,
+    };
+    blocks.push(block);
+    return block;
+  };
+
+  // 0. Lunch first, and it is not negotiable. Treating it as flexible is how
+  //    a scheduler quietly deletes your break.
+  const lunchPassed =
+    floor !== null && floor !== undefined && floor >= prefs.lunchStart + prefs.lunchMinutes;
+  const lunch = {
+    id: 'lunch', title: 'Lunch', kind: 'break',
+    start: prefs.lunchStart, end: prefs.lunchStart + prefs.lunchMinutes,
+    why: 'Protected break — never scheduled over',
+  };
+  if (prefs.lunchMinutes > 0 && !lunchPassed) blocks.push(lunch);
+
+  // 1. Existing commitments and anything with a stated time.
+  for (const fixed of options.fixed || []) {
+    blocks.push({ ...fixed, kind: fixed.kind || 'fixed', why: 'Existing commitment' });
+  }
+
+  const remaining = [];
+  for (const task of tasks) {
+    if (task.fixedAt !== null && task.fixedAt !== undefined) {
+      place(task, task.fixedAt, `You asked for ${minutesToLabel(task.fixedAt)}`);
+    } else {
+      remaining.push(task);
+    }
+  }
+
+  const sortKey = (t) => [t.urgent ? 0 : 1, t.deadline ?? 9999, -t.minutes];
+  const byPriority = (a, b) => {
+    const ka = sortKey(a), kb = sortKey(b);
+    for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] - kb[i];
+    return 0;
+  };
+
+  // 2. Deep work into the morning peak, hardest first, capped and broken up.
+  const deep = remaining.filter((t) => t.kind === 'deep').sort(byPriority);
+  let deepStreak = 0;
+  // Tracked explicitly. Reading blocks.at(-1) looks equivalent but is not:
+  // blocks are appended in placement order, not time order, so once a task
+  // spills into the afternoon the "last block" is no longer the one that just
+  // ran. That bug pushed the break offset into the evening and deferred a
+  // 60-minute task while a 70-minute hole sat open in the morning.
+  let lastDeepEnd = null;
+  for (const task of deep) {
+    let from = band.peak[0];
+    if (deepStreak >= prefs.maxDeepBlock && lastDeepEnd !== null) {
+      from = Math.max(from, lastDeepEnd + prefs.breakAfterDeep);
+      deepStreak = 0;
+      notes.push('Added a break — more than 90 minutes of focus in a row stops paying.');
+    }
+    let slot = findSlot(task.minutes, from, band.peak[1], blocks, prefs.buffer);
+    let why = 'Morning peak — hardest thinking while focus is highest';
+
+    if (slot === null) {
+      slot = findSlot(task.minutes, band.second[0], band.second[1], blocks, prefs.buffer);
+      why = 'Second wind — morning was full, and this needs real attention';
+    }
+    if (slot === null) {
+      deferred.push({ ...task, reason: 'No focus block long enough left today' });
+      continue;
+    }
+    const placed = place(task, slot, why);
+    // Only a block that actually ran in the peak continues the streak. Work
+    // pushed to the afternoon starts a fresh one.
+    if (slot < band.peak[1]) {
+      deepStreak += task.minutes;
+      lastDeepEnd = Math.max(lastDeepEnd ?? 0, placed.end);
+    } else {
+      deepStreak = 0;
+    }
+  }
+
+  // 3. Social into late morning or mid-afternoon. Never first thing: a call
+  //    at 9am costs the whole morning's momentum.
+  for (const task of remaining.filter((t) => t.kind === 'social').sort(byPriority)) {
+    let slot = findSlot(task.minutes, band.second[0], band.second[1], blocks, prefs.buffer);
+    let why = 'Mid-afternoon — good for talking, poor for deep work';
+    if (slot === null) {
+      slot = findSlot(task.minutes, band.peak[0] + 60, band.peak[1], blocks, prefs.buffer);
+      why = 'Late morning — afternoon was full';
+    }
+    if (slot === null) {
+      deferred.push({ ...task, reason: 'No conversational slot left today' });
+      continue;
+    }
+    place(task, slot, why);
+  }
+
+  // 4. Shallow work batched into the post-lunch dip. Batching beats
+  //    scattering: each context switch costs more than the task.
+  const shallow = remaining.filter((t) => t.kind === 'shallow').sort(byPriority);
+  if (shallow.length) {
+    notes.push(`Batched ${shallow.length} small task(s) together — switching costs more than the work.`);
+  }
+  for (const task of shallow) {
+    let slot = findSlot(task.minutes, band.dip[0], band.dip[1], blocks, prefs.buffer);
+    let why = 'Post-lunch dip — low-focus work while attention is lowest';
+    if (slot === null) {
+      slot = findSlot(task.minutes, band.winddown[0], band.winddown[1], blocks, prefs.buffer);
+      why = 'End of day — admin to close out on';
+    }
+    if (slot === null) {
+      slot = findSlot(task.minutes, band.dayStart ?? prefs.dayStart, prefs.dayEnd, blocks, prefs.buffer);
+      why = 'First gap available';
+    }
+    if (slot === null) {
+      deferred.push({ ...task, reason: 'Day is full' });
+      continue;
+    }
+    place(task, slot, why);
+  }
+
+  // 5. Physical, kept clear of the post-lunch cooldown.
+  for (const task of remaining.filter((t) => t.kind === 'physical').sort(byPriority)) {
+    const earliest = Math.max(
+      band.winddown[0],
+      lunchPassed ? 0 : lunch.end + prefs.physicalCooldownAfterLunch,
+      floor ?? 0,
+    );
+    let slot = findSlot(task.minutes, earliest, prefs.dayEnd + 120, blocks, prefs.buffer);
+    let why = 'End of day — movement after sitting, and clear of lunch';
+    if (slot === null) {
+      slot = findSlot(task.minutes, prefs.dayStart - 90, prefs.dayStart, blocks, prefs.buffer);
+      why = 'Before the workday — nothing else fit';
+    }
+    if (slot === null) {
+      deferred.push({ ...task, reason: 'No room for exercise today' });
+      continue;
+    }
+    place(task, slot, why);
+  }
+
+  // 6. Errands last, and deliberately not in the morning. Leaving the house
+  //    to buy groceries at 11am costs the whole focus window, not just the
+  //    45 minutes it takes. Prime thinking time is the scarcest thing in the
+  //    day and an errand is the cheapest thing to move.
+  for (const task of remaining.filter((t) => t.kind === 'errand').sort(byPriority)) {
+    const attempts = [
+      [band.winddown[0], prefs.dayEnd + 90, 'End of day — errands on the way home'],
+      [band.dip[0], band.second[0], 'After lunch — low-focus time, good for getting out'],
+      [band.second[0], band.winddown[0], 'Afternoon — fitted around the focused work'],
+      [Math.max(prefs.dayStart, floor ?? 0), prefs.dayEnd, 'Morning was the only gap left'],
+    ];
+    let placed = false;
+    for (const [from, until, why] of attempts) {
+      const slot = findSlot(task.minutes, from, until, blocks, prefs.buffer);
+      if (slot !== null) { place(task, slot, why); placed = true; break; }
+    }
+    if (!placed) deferred.push({ ...task, reason: 'Day is full' });
+  }
+
+  // 7. Deadline check. Missing one silently is the worst possible failure.
+  for (const block of blocks) {
+    const task = tasks.find((t) => t.id === block.id);
+    if (task?.deadline && block.end > task.deadline) {
+      block.warning = `Ends after your ${minutesToLabel(task.deadline)} deadline`;
+      notes.push(`"${block.title}" cannot finish before ${minutesToLabel(task.deadline)}.`);
+    }
+  }
+
+  blocks.sort((a, b) => a.start - b.start);
+
+  if (deferred.length) {
+    const total = deferred.reduce((sum, t) => sum + t.minutes, 0);
+    notes.push(
+      `${deferred.length} task(s) did not fit — about ${Math.round(total / 60 * 10) / 10}h ` +
+      `more than today holds. They are listed below rather than squeezed in.`,
+    );
+  }
+
+  const busy = blocks.reduce((sum, b) => sum + (b.end - b.start), 0);
+  const span = prefs.dayEnd - prefs.dayStart;
+  if (busy > span * 0.85) {
+    notes.push('This day is over 85% booked. Consider moving something.');
+  }
+
+  return { blocks, deferred, notes };
+}
+
+/* ------------------------------------------------------------------ */
+/* Commitment                                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A plan you have started living in.
+ *
+ * `schedule()` answers "what would a good day look like." This answers the
+ * harder question: "it is 2:40pm, the deck took an hour longer than I said,
+ * and I already committed to the 4pm call — now what."
+ *
+ * Three categories of block are immovable during a re-plan, for different
+ * reasons:
+ *
+ *   locked     — you committed to it. Moving it would make the commitment
+ *                meaningless, which is the whole point of locking.
+ *   done       — it happened. History is not reschedulable.
+ *   running    — you are inside it. Interrupting focus to optimise a
+ *                timetable is exactly backwards.
+ */
+
+function newState() {
+  return { locked: [], done: [], skipped: [], running: null };
+}
+
+function isLocked(state, id) { return state.locked.includes(id); }
+function isDone(state, id) { return state.done.some((d) => d.id === id); }
+function isSkipped(state, id) { return state.skipped.includes(id); }
+
+function toggleLock(state, id) {
+  const locked = isLocked(state, id)
+    ? state.locked.filter((x) => x !== id)
+    : [...state.locked, id];
+  return { ...state, locked };
+}
+
+function startBlock(state, id, now) {
+  return { ...state, running: { id, startedAt: now } };
+}
+
+/**
+ * Finish the running block at `now`.
+ *
+ * The actual end time is recorded, not the planned one. That difference is
+ * the only honest input a re-plan has: a schedule that assumes you finished
+ * on time is a schedule that will be wrong by lunchtime.
+ */
+function completeBlock(state, block, now) {
+  const startedAt = state.running?.id === block.id ? state.running.startedAt : block.start;
+  return {
+    ...state,
+    running: state.running?.id === block.id ? null : state.running,
+    done: [
+      ...state.done.filter((d) => d.id !== block.id),
+      {
+        id: block.id, title: block.title, kind: block.kind,
+        start: startedAt, end: now,
+        planned: block.end - block.start,
+        actual: now - startedAt,
+      },
+    ],
+  };
+}
+
+function skipBlock(state, id) {
+  return {
+    ...state,
+    running: state.running?.id === id ? null : state.running,
+    skipped: [...state.skipped, id],
+    locked: state.locked.filter((x) => x !== id),
+  };
+}
+
+/**
+ * How far off the plan you are, in minutes.
+ *
+ * Positive is behind. Computed from finished work only — comparing against a
+ * block you have not started yet would report drift you have not accrued.
+ */
+function computeDrift(state, now) {
+  let drift = state.done.reduce((sum, d) => sum + (d.actual - d.planned), 0);
+  if (state.running) {
+    const { id, startedAt } = state.running;
+    const planned = state.plannedDurations?.[id];
+    if (planned && now - startedAt > planned) drift += now - startedAt - planned;
+  }
+  return Math.round(drift);
+}
+
+/**
+ * Rebuild the rest of the day around what has actually happened.
+ *
+ * Committed, finished, and in-progress blocks are passed through as immovable.
+ * Everything else is re-placed from `now` forward under the ordinary rules,
+ * so the afternoon still respects the post-lunch dip and still refuses to put
+ * deep work where it will not survive.
+ */
+function replan(tasks, state, now, options = {}) {
+  const prefs = { ...DEFAULTS, ...options };
+
+  const immovable = [];
+  const settled = new Set();
+
+  for (const d of state.done) {
+    immovable.push({
+      id: d.id, title: d.title, kind: d.kind, start: d.start, end: d.end,
+      why: d.actual > d.planned
+        ? `Done — ran ${d.actual - d.planned} min over`
+        : 'Done',
+      done: true,
+    });
+    settled.add(d.id);
+  }
+
+  const priorBlocks = options.currentBlocks || [];
+  for (const b of priorBlocks) {
+    if (settled.has(b.id) || state.skipped.includes(b.id)) continue;
+    const running = state.running?.id === b.id;
+    if (!running && !state.locked.includes(b.id)) continue;
+    immovable.push({
+      ...b,
+      why: running ? 'In progress — not interrupted' : 'Locked in — you committed to this',
+      locked: !running,
+      running,
+    });
+    settled.add(b.id);
+  }
+
+  for (const id of state.skipped) settled.add(id);
+
+  const open = tasks.filter((t) => !settled.has(t.id));
+  const result = schedule(open, { ...prefs, notBefore: now, fixed: immovable });
+
+  // schedule() adds lunch itself; drop the duplicate if a locked block already
+  // covers that slot.
+  const seen = new Set();
+  result.blocks = result.blocks.filter((b) => {
+    const key = `${b.id}:${b.start}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const drift = computeDrift({ ...state, plannedDurations: options.plannedDurations }, now);
+  if (drift > 10) {
+    result.notes.unshift(
+      `You are ${drift} minutes behind. The rest of the day has been rebuilt from ${minutesToLabel(now)}.`,
+    );
+  } else if (drift < -10) {
+    result.notes.unshift(`You are ${Math.abs(drift)} minutes ahead. Nice.`);
+  }
+  if (state.locked.length) {
+    result.notes.push(`${state.locked.length} block(s) locked in and left alone.`);
+  }
+
+  result.drift = drift;
+  return result;
+}
+
+
+/* ---------------- preferences parsing ---------------- */
+
+function parsePrefs(text) {
+  const out = {};
+  const t = (text || '').toLowerCase();
+  const time = (re) => {
+    const m = t.match(re);
+    if (!m) return null;
+    let h = parseInt(m[1], 10);
+    const min = m[2] ? parseInt(m[2], 10) : 0;
+    const mer = (m[3] || '').toLowerCase();
+    if (mer === 'pm' && h !== 12) h += 12;
+    if (mer === 'am' && h === 12) h = 0;
+    if (!mer && h <= 7) h += 12;
+    return h * 60 + min;
+  };
+  const start = time(/start(?:s|ing)?\s*(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  const end = time(/(?:finish|end|done|stop)(?:es|ing)?\s*(?:by|at)?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  const lunch = time(/lunch\s*(?:at)?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  if (start !== null) out.dayStart = start;
+  if (end !== null) out.dayEnd = end;
+  if (lunch !== null) out.lunchStart = lunch;
+  if (/no lunch|skip lunch/.test(t)) out.lunchMinutes = 0;
+  return out;
+}
+
+/* ---------------- rendering ---------------- */
+
+const KIND_COLOUR = {
+  deep: 'var(--deep)', social: 'var(--social)', shallow: 'var(--shallow)',
+  physical: 'var(--physical)', errand: 'var(--errand)',
+  break: 'var(--break)', fixed: 'var(--social)',
+};
+
+const cal = document.getElementById('cal');
+const summary = document.getElementById('summary');
+const driftEl = document.getElementById('drift');
+const replanBtn = document.getElementById('replan');
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+/* Session state. Kept in memory only — no storage, no backend. */
+let TASKS = [];
+let PLAN = null;
+let STATE = newState();
+let PREFS = {};
+
+const LOADED = Date.now();
+
+/**
+ * Current time in minutes past midnight.
+ *
+ * Inside working hours this is simply the clock. Outside them it would freeze
+ * at the day boundary, so every action would land on the same minute and a
+ * task would appear to take zero time. So outside the day it runs a demo
+ * clock from dayStart at one minute per second — fast enough to watch a block
+ * run and overrun, and clearly labelled so it is not mistaken for real time.
+ */
+function isDemoClock() {
+  const d = new Date();
+  const m = d.getHours() * 60 + d.getMinutes();
+  return m < (PREFS.dayStart ?? DEFAULTS.dayStart) || m > (PREFS.dayEnd ?? DEFAULTS.dayEnd);
+}
+
+function nowMinutes() {
+  const lo = PREFS.dayStart ?? DEFAULTS.dayStart;
+  const hi = PREFS.dayEnd ?? DEFAULTS.dayEnd;
+  if (!isDemoClock()) {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
+  }
+  return Math.min(lo + Math.floor((Date.now() - LOADED) / 1000), hi + 120);
+}
+
+function pad(n) { return String(Math.floor(Math.abs(n))).padStart(2, '0'); }
+
+function render() {
+  const { blocks, deferred, notes } = PLAN;
+  const now = nowMinutes();
+
+  if (!blocks.length) {
+    cal.innerHTML = '<div class="empty">Nothing to schedule yet.</div>';
+    summary.textContent = '';
+    return;
+  }
+
+  const first = Math.min(...blocks.map((b) => b.start), PREFS.dayStart ?? 9 * 60);
+  const last = Math.max(...blocks.map((b) => b.end), PREFS.dayEnd ?? 18 * 60);
+
+  let html = '<div class="tl">';
+  for (let h = Math.floor(first / 60); h < Math.ceil(last / 60); h++) {
+    const inHour = blocks.filter((b) => Math.floor(b.start / 60) === h);
+    html += `<div class="row"><div class="hour">${minutesToLabel(h * 60).replace(':00', '')}</div><div class="lane">`;
+    for (const b of inHour) {
+      const done = b.done || isDone(STATE, b.id);
+      // A finished block shows what actually happened, not what was planned.
+      // Displaying the plan after the fact is how a tracker quietly lies to you.
+      const record = STATE.done.find((d) => d.id === b.id);
+      const shownStart = record ? record.start : b.start;
+      const shownEnd = record ? record.end : b.end;
+      const over = record ? record.actual - record.planned : 0;
+      const locked = b.locked || isLocked(STATE, b.id);
+      const running = STATE.running?.id === b.id;
+      const cls = ['blk', b.kind === 'break' ? 'break' : '', done ? 'done' : '',
+                   locked ? 'locked' : '', running ? 'running' : ''].filter(Boolean).join(' ');
+
+      let timer = '';
+      if (running) {
+        const elapsed = now - STATE.running.startedAt;
+        const planned = b.end - b.start;
+        const left = planned - elapsed;
+        timer = `<span class="timer${left < 0 ? ' over' : ''}">`
+          + `${left < 0 ? '+' : ''}${pad(left / 60)}:${pad(Math.abs(left) % 60)}</span>`;
+      }
+
+      const acts = b.kind === 'break' || done ? '' : `
+        <div class="acts">
+          <button class="act${locked ? ' on' : ''}" data-act="lock" data-id="${b.id}">
+            ${locked ? 'Locked' : 'Lock in'}</button>
+          ${running
+            ? `<button class="act on" data-act="done" data-id="${b.id}">Finish</button>`
+            : `<button class="act" data-act="start" data-id="${b.id}">Start</button>`}
+          <button class="act" data-act="skip" data-id="${b.id}">Skip</button>
+        </div>`;
+
+      html += `<div class="${cls}" style="--k:${KIND_COLOUR[b.kind] || 'var(--shallow)'}">
+        <div class="t"><span class="name">${esc(b.title)}</span>
+          ${timer}
+          <span class="when">${minutesToLabel(shownStart)} – ${minutesToLabel(shownEnd)}</span></div>
+        <div class="why">${record
+          ? (over > 0 ? `Done — ran ${over} min over the ${record.planned} min planned`
+             : over < 0 ? `Done — finished ${-over} min early`
+             : 'Done — on time')
+          : esc(b.why)}</div>
+        ${b.warning ? `<div class="warn">⚠ ${esc(b.warning)}</div>` : ''}
+        ${acts}
+      </div>`;
+    }
+    html += '</div></div>';
+  }
+  html += '</div>';
+
+  if (notes.length) {
+    html += '<div class="notes"><h4>How this was built</h4><ul>'
+      + notes.map((n) => `<li>${esc(n)}</li>`).join('') + '</ul></div>';
+  }
+  if (deferred.length) {
+    html += '<div class="notes defer"><h4>Did not fit today</h4><ul>'
+      + deferred.map((d) => `<li>${esc(d.title)} — ${esc(d.reason)}</li>`).join('')
+      + '</ul></div>';
+  }
+
+  cal.innerHTML = html;
+
+  for (const btn of cal.querySelectorAll('.act')) {
+    btn.addEventListener('click', () => act(btn.dataset.act, btn.dataset.id));
+  }
+
+  const work = blocks.filter((b) => b.kind !== 'break')
+    .reduce((s, b) => s + (b.end - b.start), 0);
+  const lockedCount = blocks.filter((b) => isLocked(STATE, b.id)).length;
+  summary.textContent = `${blocks.length - 1} blocks · ${(work / 60).toFixed(1)}h`
+    + (lockedCount ? ` · ${lockedCount} locked` : '');
+
+  const d = computeDrift(STATE, now);
+  if (Math.abs(d) > 5) {
+    driftEl.textContent = d > 0 ? `${d}m behind` : `${-d}m ahead`;
+    driftEl.className = 'drift ' + (d > 0 ? 'behind' : 'ahead');
+  } else {
+    driftEl.textContent = ''; driftEl.className = 'drift';
+  }
+  replanBtn.hidden = !(STATE.done.length || STATE.skipped.length || STATE.locked.length);
+}
+
+function act(kind, id) {
+  const block = PLAN.blocks.find((b) => b.id === id);
+  const now = nowMinutes();
+  if (kind === 'lock') STATE = toggleLock(STATE, id);
+  if (kind === 'start') STATE = startBlock(STATE, id, now);
+  if (kind === 'done') STATE = completeBlock(STATE, block, now);
+  if (kind === 'skip') {
+    STATE = skipBlock(STATE, id);
+    PLAN = replan(TASKS, STATE, now, { ...PREFS, currentBlocks: PLAN.blocks });
+  }
+  render();
+}
+
+function plan() {
+  PREFS = parsePrefs(prefsInput.value);
+  TASKS = parseTasks(todos.value);
+  STATE = newState();
+  PLAN = schedule(TASKS, PREFS);
+  render();
+}
+
+function doReplan() {
+  PLAN = replan(TASKS, STATE, nowMinutes(), { ...PREFS, currentBlocks: PLAN.blocks });
+  render();
+}
+
+/* ---------------- wiring ---------------- */
+
+const todos = document.getElementById('todos');
+const prefsInput = document.getElementById('prefs');
+
+document.getElementById('go').addEventListener('click', plan);
+replanBtn.addEventListener('click', doReplan);
+
+setInterval(() => {
+  const label = minutesToLabel(nowMinutes());
+  document.getElementById('clock').textContent =
+    isDemoClock() ? `${label} · demo clock` : label;
+  if (STATE.running && PLAN) render();
+}, 1000);
+
+todos.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') document.getElementById('go').click();
+});
+
+const SAMPLES = {
+  busy: `finish the quarterly deck 2h
+urgent: fix the login bug by 2pm
+standup at 9:30am 15m
+email Sarah about the invoice
+reply to Dana
+call mom 15m
+review the design spec 1h
+gym
+buy groceries
+pay the electricity bill`,
+  light: `write blog post
+call the dentist
+gym`,
+  clear: '',
+};
+
+for (const chip of document.querySelectorAll('.chip')) {
+  chip.addEventListener('click', () => {
+    todos.value = SAMPLES[chip.dataset.fill];
+    if (chip.dataset.fill === 'clear') {
+      STATE = newState(); PLAN = null;
+      cal.innerHTML = '<div class="empty">Write your to-dos on the right and hit Plan my day.</div>';
+      summary.textContent = ''; driftEl.textContent = ''; replanBtn.hidden = true;
+    } else {
+      plan();
+    }
+  });
+}
+
+document.getElementById('gsign').addEventListener('click', () => {
+  alert(
+    'Google Calendar sync needs OAuth credentials and a backend to hold them.\n\n'
+    + 'Everything else works without signing in — the scheduler runs entirely '
+    + 'in this page. Existing calendar events would be passed to schedule() as '
+    + '`fixed` blocks — the same mechanism that keeps a locked block immovable.',
+  );
+});
+
+document.getElementById('today').textContent = new Date().toLocaleDateString(
+  undefined, { weekday: 'short', month: 'short', day: 'numeric' },
+);
+
+todos.value = SAMPLES.busy;
+plan();
+</script>
+</body>
+</html>
